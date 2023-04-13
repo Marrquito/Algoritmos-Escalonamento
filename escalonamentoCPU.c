@@ -28,6 +28,11 @@ void calculaTempoEsperaSJF(Processo *aux, int *tempoEspera);
 void calculaTempoRetornoSJF(Processo *aux, int *tempoRetorno);
 void calculaTempoRespostaSJF(Processo *aux, int *tempoResposta);
 
+void RR();
+void calculaTempoEsperaRR(Processo *aux, int *tempoEspera);
+void calculaTempoRetornoRR(Processo *aux, int *tempoRetorno);
+void calculaTempoRespostaRR(Processo *aux, int *tempoResposta);
+
 Processo processos[100] = {0};
 float    NUM_PROCESSOS  = 0.0;
 
@@ -209,6 +214,84 @@ void calculaTempoRespostaSJF(Processo *aux, int *tempoResposta)
     } 
 }
 
+// RR - Round Robin
+void RR()
+{
+    Processo* aux       = NULL;
+    int tempoRetorno    = 0;
+    int tempoResposta   = 0;
+    int tempoEspera     = 0;
+    int tempoAtual      = 0;
+    int restantes       = NUM_PROCESSOS;
+
+    aux = malloc(sizeof(Processo) * NUM_PROCESSOS);
+    if(!aux) return;
+
+    memcpy(aux, processos, sizeof(Processo) * NUM_PROCESSOS);
+
+    while (restantes > 0) {
+        for (int i = 0; i < NUM_PROCESSOS; i++) {
+            if (aux[i].tempoChegada > tempoAtual || aux[i].tempoDuracao == 0) continue;
+
+            // printf("Executando processo %d por %d unidades de tempo.\n", i, RR_QUANTUM);
+
+            if (aux[i].tempoDuracao <= RR_QUANTUM)
+            {
+                if (i > 0 && aux[i].tempoInicio == 0) aux[i].tempoInicio = tempoAtual;
+
+                tempoAtual          += aux[i].tempoDuracao;
+                aux[i].tempoDuracao = 0;
+                aux[i].tempoFim     = tempoAtual;
+                restantes--;
+            } 
+            else 
+            {   
+                if (i > 0 && aux[i].tempoInicio == 0) aux[i].tempoInicio = tempoAtual;
+
+                tempoAtual           += RR_QUANTUM;
+                aux[i].tempoExecucao += RR_QUANTUM;
+                aux[i].tempoDuracao  -= RR_QUANTUM;
+            }
+
+            for (int j = 0; j < NUM_PROCESSOS; j++)
+            {
+                if (j == i || aux[j].tempoDuracao == 0) continue;
+
+                aux[j].tempoEspera += RR_QUANTUM;
+            }
+        }
+    }
+
+    calculaTempoEsperaRR(aux, &tempoEspera);
+    calculaTempoRetornoRR(aux, &tempoRetorno);
+    calculaTempoRespostaRR(aux, &tempoResposta);
+
+    printf("RR %.1f %.1f %.1f\n", tempoRetorno/NUM_PROCESSOS, tempoResposta/NUM_PROCESSOS, tempoEspera/NUM_PROCESSOS);
+}
+
+void calculaTempoEsperaRR(Processo *aux, int *tempoEspera)
+{
+    for (int i = 0; i < NUM_PROCESSOS; i++) *tempoEspera += aux[i].tempoEspera;
+}
+
+void calculaTempoRetornoRR(Processo *aux, int *tempoRetorno)
+{
+    for (int i = 0; i < NUM_PROCESSOS; i++) 
+    {
+        aux[i].tempoRetorno = aux[i].tempoFim - aux[i].tempoChegada;
+        *tempoRetorno += aux[i].tempoRetorno;
+    }
+}
+
+void calculaTempoRespostaRR(Processo *aux, int *tempoResposta)
+{
+    for (int i = 0; i < NUM_PROCESSOS; i++) 
+    {
+        aux[i].tempoResposta = aux[i].tempoInicio - aux[i].tempoChegada;
+        *tempoResposta += aux[i].tempoResposta;
+    }
+}
+
 int main()
 {
     memset(processos, 0, sizeof(processos));
@@ -225,7 +308,7 @@ int main()
 
     FCFS();
     SJF();
-    // RR();
+    RR();
 
     return 0;
 }
