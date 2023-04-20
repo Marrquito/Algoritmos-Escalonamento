@@ -33,7 +33,7 @@ void calculaTempoEsperaRR(Processo *aux, int *tempoEspera);
 void calculaTempoRetornoRR(Processo *aux, int *tempoRetorno);
 void calculaTempoRespostaRR(Processo *aux, int *tempoResposta);
 
-Processo processos[100] = {0};
+Processo *processos     = NULL;
 float    NUM_PROCESSOS  = 0.0;
 
 int leArquivo()
@@ -42,6 +42,7 @@ int leArquivo()
     char *result = NULL;
     char aux[10] = {'\0'};
     int  i       = 0;
+    int  linhas  = 0;
 
     arq = fopen("processos.txt", "r");
     
@@ -50,13 +51,18 @@ int leArquivo()
         printf("Problemas na abertura do arquivo");
         return 0;
     }
+    
+    fseek(arq, 0, SEEK_END);
+    linhas = ftell(arq);
+    rewind(arq);
 
+    processos = (Processo *) calloc(linhas, sizeof(Processo));
+    
     // tempo de chegada e tempo de duração de cada processo
     // ex: 0 3
     while (!feof(arq))
     {
         result = fgets(aux, 10, arq);
-        
         if(result)
         {
             processos[i].tempoChegada = atoi(aux);
@@ -98,6 +104,8 @@ void FCFS()
     calculaTempoRespostaFCFS(aux, &tempoResposta);
 
     printf("FCFS %.1f %.1f %.1f\n", tempoRetorno/NUM_PROCESSOS, tempoResposta/NUM_PROCESSOS, tempoEspera/NUM_PROCESSOS);
+
+    free(aux);
 }
 
 void calculaTempoEsperaFCFS(Processo *aux, int *tempoEspera)
@@ -185,6 +193,8 @@ void SJF()
     calculaTempoRespostaSJF(aux, &tempoResposta);
 
     printf("SJF %.1f %.1f %.1f\n", tempoRetorno/NUM_PROCESSOS, tempoResposta/NUM_PROCESSOS, tempoEspera/NUM_PROCESSOS);
+
+    free(aux);
 }
 
 void calculaTempoEsperaSJF(Processo *aux, int *tempoEspera)
@@ -229,15 +239,16 @@ void RR()
 
     memcpy(aux, processos, sizeof(Processo) * NUM_PROCESSOS);
 
-    while (restantes > 0) {
-        for (int i = 0; i < NUM_PROCESSOS; i++) {
-            if (aux[i].tempoChegada > tempoAtual || aux[i].tempoDuracao == 0) continue;
+    while (restantes > 0) 
+    {
 
-            // printf("Executando processo %d por %d unidades de tempo.\n", i, RR_QUANTUM);
+        for (int i = 0; i < NUM_PROCESSOS; i++) 
+        {
+            if (aux[i].tempoChegada > tempoAtual || aux[i].tempoDuracao == 0) continue;
 
             if (aux[i].tempoDuracao <= RR_QUANTUM)
             {
-                if (i > 0 && aux[i].tempoInicio == 0) aux[i].tempoInicio = tempoAtual;
+                if (aux[i].tempoInicio == 0) aux[i].tempoInicio = tempoAtual;
 
                 tempoAtual          += aux[i].tempoDuracao;
                 aux[i].tempoDuracao = 0;
@@ -246,7 +257,7 @@ void RR()
             } 
             else 
             {   
-                if (i > 0 && aux[i].tempoInicio == 0) aux[i].tempoInicio = tempoAtual;
+                if (aux[i].tempoInicio == 0) aux[i].tempoInicio = tempoAtual; 
 
                 tempoAtual           += RR_QUANTUM;
                 aux[i].tempoExecucao += RR_QUANTUM;
@@ -267,6 +278,8 @@ void RR()
     calculaTempoRespostaRR(aux, &tempoResposta);
 
     printf("RR %.1f %.1f %.1f\n", tempoRetorno/NUM_PROCESSOS, tempoResposta/NUM_PROCESSOS, tempoEspera/NUM_PROCESSOS);
+
+    free(aux);
 }
 
 void calculaTempoEsperaRR(Processo *aux, int *tempoEspera)
@@ -294,7 +307,6 @@ void calculaTempoRespostaRR(Processo *aux, int *tempoResposta)
 
 int main()
 {
-    memset(processos, 0, sizeof(processos));
     int rc;
 
     rc = leArquivo();
@@ -309,6 +321,8 @@ int main()
     FCFS();
     SJF();
     RR();
+
+    free(processos);
 
     return 0;
 }
