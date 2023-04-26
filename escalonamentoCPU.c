@@ -14,7 +14,20 @@ typedef struct processos
     int tempoResposta;
     int tempoRetorno;
     int tempoEspera;
+    int isStarted;
 } Processo;
+
+typedef struct filaCircular {
+    Processo **processos;
+    int inicio;
+    int fim;
+    int tamanho;
+} FilaCircular;
+
+void        initFila(FilaCircular *fila);
+void        pushFila(FilaCircular *fila, Processo *processo);
+int         filaVazia(FilaCircular *fila);
+Processo*   popFila(FilaCircular *fila);
 
 int leArquivo();
 
@@ -29,20 +42,64 @@ void calculaTempoRetornoSJF(Processo *aux, int *tempoRetorno);
 void calculaTempoRespostaSJF(Processo *aux, int *tempoResposta);
 
 void RR();
-void calculaTempoEsperaRR(Processo *aux, int *tempoEspera);
-void calculaTempoRetornoRR(Processo *aux, int *tempoRetorno);
-void calculaTempoRespostaRR(Processo *aux, int *tempoResposta);
 
 Processo *processos     = NULL;
 float    NUM_PROCESSOS  = 0.0;
+
+void initFila(FilaCircular *fila)
+{
+    fila->processos = (Processo **) calloc(NUM_PROCESSOS, sizeof(Processo));
+    fila->inicio = 0;
+    fila->fim = 0;
+    fila->tamanho = 0;
+}
+
+void pushFila(FilaCircular *fila, Processo *processo)
+{
+    int numProcessos = NUM_PROCESSOS;
+    fila->processos[fila->fim] = processo;
+    fila->fim = (fila->fim + 1) % numProcessos;
+    fila->tamanho++;
+}
+
+Processo* popFila(FilaCircular *fila)
+{
+    if (fila->tamanho == 0) return NULL;
+    
+    int numProcessos = NUM_PROCESSOS;
+    
+    Processo *processo = fila->processos[fila->inicio];
+
+    fila->inicio = (fila->inicio + 1) % numProcessos;
+    fila->tamanho--;
+    
+    return processo;
+}
+
+int filaVazia(FilaCircular *fila)
+{
+    return fila->tamanho == 0;
+}
+
+void verificaChegada(FilaCircular *fila, Processo *processo, int *indiceAtual, int tempoAtual)
+{
+    for(int i = *indiceAtual; i < NUM_PROCESSOS; i++)
+    {
+        if(processo[i].tempoChegada == tempoAtual)
+        {
+            pushFila(fila, &processo[i]);
+            *indiceAtual++;
+        }
+    }
+} 
 
 int leArquivo()
 {
     FILE *arq    = NULL;
     char *result = NULL;
     char aux[10] = {'\0'};
-    int  i       = 0;
     int  linhas  = 0;
+    int  i       = 0;
 
     arq = fopen("processos.txt", "r");
     
@@ -88,6 +145,7 @@ void FCFS()
     int tempoEspera     = 0;
     
     aux = malloc(sizeof(Processo) * NUM_PROCESSOS);
+    
     if(!aux) return;
     
     memcpy(aux, processos, sizeof(Processo) * NUM_PROCESSOS);
@@ -147,6 +205,7 @@ void SJF()
     int restantes       = NUM_PROCESSOS;
 
     aux = malloc(sizeof(Processo) * NUM_PROCESSOS);
+    
     if(!aux) return;
 
     memcpy(aux, processos, sizeof(Processo) * NUM_PROCESSOS);
@@ -227,82 +286,64 @@ void calculaTempoRespostaSJF(Processo *aux, int *tempoResposta)
 // RR - Round Robin
 void RR()
 {
-    Processo* aux       = NULL;
+    Processo*    atual  = NULL;
+    FilaCircular fila   = {0};
+    int restantes       = NUM_PROCESSOS;
+    int indiceAtual     = 0;
     int tempoRetorno    = 0;
     int tempoResposta   = 0;
     int tempoEspera     = 0;
     int tempoAtual      = 0;
-    int restantes       = NUM_PROCESSOS;
 
-    aux = malloc(sizeof(Processo) * NUM_PROCESSOS);
-    if(!aux) return;
+    initFila(&fila);
 
-    memcpy(aux, processos, sizeof(Processo) * NUM_PROCESSOS);
-
-    while (restantes > 0) 
+    while (restantes) 
     {
+        if(!processos[indiceAtual].isStarted) verificaChegada(&fila, processos, &indiceAtual, tempoAtual);
 
-        for (int i = 0; i < NUM_PROCESSOS; i++) 
+        if (!atual && !filaVazia(&fila)) 
         {
-            if (aux[i].tempoChegada > tempoAtual || aux[i].tempoDuracao == 0) continue;
+            atual = popFila(&fila);
 
-            if (aux[i].tempoDuracao <= RR_QUANTUM)
+            if(!atual->isStarted)
             {
-                if (aux[i].tempoInicio == 0) aux[i].tempoInicio = tempoAtual;
-
-                tempoAtual          += aux[i].tempoDuracao;
-                aux[i].tempoDuracao = 0;
-                aux[i].tempoFim     = tempoAtual;
-                restantes--;
-            } 
-            else 
-            {   
-                if (aux[i].tempoInicio == 0) aux[i].tempoInicio = tempoAtual; 
-
-                tempoAtual           += RR_QUANTUM;
-                aux[i].tempoExecucao += RR_QUANTUM;
-                aux[i].tempoDuracao  -= RR_QUANTUM;
+                atual->isStarted     = 1;
+                atual->tempoResposta = tempoAtual - atual->tempoChegada;
             }
+        }
 
-            for (int j = 0; j < NUM_PROCESSOS; j++)
+        if(atual)
+        {
+            atual->tempoExecucao += RR_QUANTUM;
+            
+            if(atual->tempoExecucao < atual->tempoDuracao)
             {
-                if (j == i || aux[j].tempoDuracao == 0) continue;
-
-                aux[j].tempoEspera += RR_QUANTUM;
+                tempoAtual  += RR_QUANTUM;
+                
+                verificaChegada(&fila, processos, &indiceAtual, tempoAtual);
+                pushFila(&fila, atual);
+                
+                atual       = NULL;
+            }
+            else
+            {
+                tempoAtual          += RR_QUANTUM;
+                
+                atual->tempoFim     = tempoAtual;
+                atual->tempoRetorno = tempoAtual - atual->tempoChegada;
+                atual->tempoEspera  = atual->tempoRetorno - atual->tempoDuracao;
+                
+                tempoRetorno    += atual->tempoRetorno;
+                tempoResposta   += atual->tempoResposta;
+                tempoEspera     += atual->tempoEspera;
+                
+                atual           = NULL;
+                restantes--;
             }
         }
     }
 
-    calculaTempoEsperaRR(aux, &tempoEspera);
-    calculaTempoRetornoRR(aux, &tempoRetorno);
-    calculaTempoRespostaRR(aux, &tempoResposta);
-
     printf("RR %.1f %.1f %.1f\n", tempoRetorno/NUM_PROCESSOS, tempoResposta/NUM_PROCESSOS, tempoEspera/NUM_PROCESSOS);
-
-    free(aux);
-}
-
-void calculaTempoEsperaRR(Processo *aux, int *tempoEspera)
-{
-    for (int i = 0; i < NUM_PROCESSOS; i++) *tempoEspera += aux[i].tempoEspera;
-}
-
-void calculaTempoRetornoRR(Processo *aux, int *tempoRetorno)
-{
-    for (int i = 0; i < NUM_PROCESSOS; i++) 
-    {
-        aux[i].tempoRetorno = aux[i].tempoFim - aux[i].tempoChegada;
-        *tempoRetorno += aux[i].tempoRetorno;
-    }
-}
-
-void calculaTempoRespostaRR(Processo *aux, int *tempoResposta)
-{
-    for (int i = 0; i < NUM_PROCESSOS; i++) 
-    {
-        aux[i].tempoResposta = aux[i].tempoInicio - aux[i].tempoChegada;
-        *tempoResposta += aux[i].tempoResposta;
-    }
 }
 
 int main()
