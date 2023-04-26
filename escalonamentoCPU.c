@@ -49,16 +49,17 @@ float    NUM_PROCESSOS  = 0.0;
 void initFila(FilaCircular *fila)
 {
     fila->processos = (Processo **) calloc(NUM_PROCESSOS, sizeof(Processo));
-    fila->inicio = 0;
-    fila->fim = 0;
-    fila->tamanho = 0;
+    fila->inicio    = 0;
+    fila->fim       = 0;
+    fila->tamanho   = 0;
 }
 
 void pushFila(FilaCircular *fila, Processo *processo)
 {
-    int numProcessos = NUM_PROCESSOS;
-    fila->processos[fila->fim] = processo;
-    fila->fim = (fila->fim + 1) % numProcessos;
+    int numProcessos            = NUM_PROCESSOS;
+
+    fila->processos[fila->fim]  = processo;
+    fila->fim                   = (fila->fim + 1) % numProcessos;
     fila->tamanho++;
 }
 
@@ -66,11 +67,11 @@ Processo* popFila(FilaCircular *fila)
 {
     if (fila->tamanho == 0) return NULL;
     
-    int numProcessos = NUM_PROCESSOS;
+    int numProcessos    = NUM_PROCESSOS;
     
-    Processo *processo = fila->processos[fila->inicio];
+    Processo *processo  = fila->processos[fila->inicio];
 
-    fila->inicio = (fila->inicio + 1) % numProcessos;
+    fila->inicio        = (fila->inicio + 1) % numProcessos;
     fila->tamanho--;
     
     return processo;
@@ -97,7 +98,7 @@ int leArquivo()
 {
     FILE *arq    = NULL;
     char *result = NULL;
-    char aux[10] = {'\0'};
+    char aux[20] = {'\0'};
     int  linhas  = 0;
     int  i       = 0;
 
@@ -122,11 +123,9 @@ int leArquivo()
         result = fgets(aux, 10, arq);
         if(result)
         {
-            processos[i].tempoChegada = atoi(aux);
-            processos[i].tempoDuracao = atoi(aux+2);
+            processos[i].tempoChegada   = atoi(aux);
+            processos[i++].tempoDuracao = atoi(aux+2);
         }
-
-        i++;
     }
 
     NUM_PROCESSOS = i;
@@ -149,7 +148,6 @@ void FCFS()
     if(!aux) return;
     
     memcpy(aux, processos, sizeof(Processo) * NUM_PROCESSOS);
-
     
     aux[0].tempoInicio = 0;
     aux[0].tempoFim    = aux[0].tempoDuracao;
@@ -170,8 +168,8 @@ void calculaTempoEsperaFCFS(Processo *aux, int *tempoEspera)
 {
     for(int i = 0; i != NUM_PROCESSOS; i++) 
     {
-        aux[i].tempoEspera = aux[i].tempoInicio - aux[i].tempoChegada;
-        *tempoEspera += aux[i].tempoEspera;
+        aux[i].tempoEspera  = aux[i].tempoInicio - aux[i].tempoChegada;
+        *tempoEspera       += aux[i].tempoEspera;
     }
 }
 
@@ -180,7 +178,7 @@ void calculaTempoRetornoFCFS(Processo *aux, int *tempoRetorno)
     for(int i = 0; i != NUM_PROCESSOS; i++)
     {
         aux[i].tempoRetorno = aux[i].tempoFim - aux[i].tempoChegada;
-        *tempoRetorno += aux[i].tempoRetorno;
+        *tempoRetorno      += aux[i].tempoRetorno;
     } 
 }
 
@@ -189,7 +187,7 @@ void calculaTempoRespostaFCFS(Processo *aux, int *tempoResposta)
     for(int i = 0; i != NUM_PROCESSOS; i++)
     {
         aux[i].tempoResposta = aux[i].tempoInicio - aux[i].tempoChegada;
-        *tempoResposta += aux[i].tempoResposta;
+        *tempoResposta      += aux[i].tempoResposta;
     } 
 }
 
@@ -209,11 +207,10 @@ void SJF()
     if(!aux) return;
 
     memcpy(aux, processos, sizeof(Processo) * NUM_PROCESSOS);
-    int *duracao = NULL;
 
     while(restantes > 0)
     {
-        int proximo = -1;
+        int proximo     = -1;
         int duracaoProx = -1;
 
         for(int i = 0; i < NUM_PROCESSOS; i++)
@@ -224,7 +221,7 @@ void SJF()
             {
                 if(proximo == -1 || duracaoAuxI < duracaoProx)
                 {
-                    proximo = i;
+                    proximo     = i;
                     duracaoProx = duracaoAuxI;
                 }
             }
@@ -260,8 +257,8 @@ void calculaTempoEsperaSJF(Processo *aux, int *tempoEspera)
 {
     for(int i = 0; i != NUM_PROCESSOS; i++)
     {
-        aux[i].tempoEspera = aux[i].tempoInicio - aux[i].tempoChegada - aux[i].tempoExecucao;
-        *tempoEspera += aux[i].tempoEspera;
+        aux[i].tempoEspera  = aux[i].tempoInicio - aux[i].tempoChegada - aux[i].tempoExecucao;
+        *tempoEspera       += aux[i].tempoEspera;
     } 
 }
 
@@ -270,7 +267,7 @@ void calculaTempoRetornoSJF(Processo *aux, int *tempoRetorno)
     for(int i = 0; i != NUM_PROCESSOS; i++)
     {
         aux[i].tempoRetorno = aux[i].tempoFim - aux[i].tempoChegada;
-        *tempoRetorno += aux[i].tempoRetorno;
+        *tempoRetorno      += aux[i].tempoRetorno;
     } 
 }
 
@@ -279,7 +276,7 @@ void calculaTempoRespostaSJF(Processo *aux, int *tempoResposta)
     for(int i = 0; i != NUM_PROCESSOS; i++)
     {
         aux[i].tempoResposta = aux[i].tempoFim - aux[i].tempoChegada - aux[i].tempoExecucao;
-        *tempoResposta += aux[i].tempoResposta;
+        *tempoResposta      += aux[i].tempoResposta;
     } 
 }
 
