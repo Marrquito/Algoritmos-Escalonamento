@@ -42,6 +42,7 @@ void calculaTempoRetornoSJF(Processo *aux, int *tempoRetorno);
 void calculaTempoRespostaSJF(Processo *aux, int *tempoResposta);
 
 void RR();
+int  max(int a, int b);
 
 Processo *processos     = NULL;
 float    NUM_PROCESSOS  = 0.0;
@@ -89,7 +90,7 @@ void verificaChegada(FilaCircular *fila, Processo *processo, int *indiceAtual, i
         if(processo[i].tempoChegada == tempoAtual)
         {
             pushFila(fila, &processo[i]);
-            *indiceAtual++;
+            (*indiceAtual)++;
         }
     }
 } 
@@ -107,12 +108,14 @@ int leArquivo()
     if (arq == NULL)
     {
         printf("Problemas na abertura do arquivo");
-        return 0;
+        return -2;
     }
     
     fseek(arq, 0, SEEK_END);
     linhas = ftell(arq);
     rewind(arq);
+
+    if(!linhas) return -1;
 
     processos = (Processo *) calloc(linhas, sizeof(Processo));
     
@@ -131,9 +134,13 @@ int leArquivo()
     NUM_PROCESSOS = i;
     fclose(arq);
 
-    return 1;
+    return 0;
 }
 
+int max(int a, int b)
+{
+    return (a > b) ? a : b;
+}
 // FCFS - First Come First Served
 void FCFS()
 {
@@ -149,11 +156,14 @@ void FCFS()
     
     memcpy(aux, processos, sizeof(Processo) * NUM_PROCESSOS);
     
-    aux[0].tempoInicio = 0;
-    aux[0].tempoFim    = aux[0].tempoDuracao;
-
-    for(int i = 1; i < NUM_PROCESSOS; i++) aux[i].tempoInicio = aux[i-1].tempoInicio + aux[i-1].tempoDuracao;
-    for(int i = 1; i < NUM_PROCESSOS; i++) aux[i].tempoFim    = aux[i].tempoInicio   + aux[i].tempoDuracao;
+    aux[0].tempoInicio = aux[0].tempoChegada;
+    aux[0].tempoFim    = aux[0].tempoChegada + aux[0].tempoDuracao;
+    
+    for(int i = 1; i < NUM_PROCESSOS; i++)
+    {
+        aux[i].tempoInicio = max(aux[i-1].tempoFim, aux[i].tempoChegada);
+        aux[i].tempoFim    = aux[i].tempoInicio   + aux[i].tempoDuracao;
+    }
     
     calculaTempoEsperaFCFS(aux, &tempoEspera);
     calculaTempoRetornoFCFS(aux, &tempoRetorno);
@@ -229,12 +239,16 @@ void SJF()
 
         if(proximo == -1) tempoAtual++;
         else
-        {
-            tempoAtual++;
+        {   
             
-            aux[proximo].tempoInicio = tempoAtual;
-            aux[proximo].tempoExecucao++;
-            aux[proximo].tempoDuracao--;
+            if(!aux[proximo].isStarted)
+            {
+                aux[proximo].tempoInicio = tempoAtual;
+                aux[proximo].isStarted   = 1;
+            }
+
+            tempoAtual                  += aux[proximo].tempoDuracao;
+            aux[proximo].tempoDuracao   = 0;
 
             if(aux[proximo].tempoDuracao == 0)
             {
@@ -336,8 +350,15 @@ void RR()
                 
                 atual           = NULL;
                 restantes--;
+
+                if(!filaVazia(&fila)) verificaChegada(&fila, processos, &indiceAtual, tempoAtual);
             }
         }
+        else
+        {   
+            verificaChegada(&fila, processos, &indiceAtual, tempoAtual);
+            tempoAtual++;
+        } 
     }
 
     printf("RR %.1f %.1f %.1f\n", tempoRetorno/NUM_PROCESSOS, tempoResposta/NUM_PROCESSOS, tempoEspera/NUM_PROCESSOS);
@@ -349,11 +370,16 @@ int main()
 
     rc = leArquivo();
     
-    if(!rc)
+    switch(rc)
     {
-        printf("Erro na leitura do arquivo");
-
-        return -1;
+        case 0:
+            break;
+        case -1:
+            puts("Arquivo vazio!");
+            return -1;
+        case -2:
+            puts("Erro na abertura do arquivo!");
+            return -2;
     }
 
     FCFS();
