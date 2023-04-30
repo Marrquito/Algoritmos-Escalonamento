@@ -3,6 +3,7 @@
 #include <stdlib.h>
 
 #define RR_QUANTUM 2
+#define MAX(a, b) ((a) > (b) ? (a) : (b))
 
 typedef struct processos
 {
@@ -42,7 +43,6 @@ void calculaTempoRetornoSJF(Processo *aux, int *tempoRetorno);
 void calculaTempoRespostaSJF(Processo *aux, int *tempoResposta);
 
 void RR();
-int  max(int a, int b);
 
 Processo *processos     = NULL;
 float    NUM_PROCESSOS  = 0.0;
@@ -87,6 +87,8 @@ void verificaChegada(FilaCircular *fila, Processo *processo, int *indiceAtual, i
 {
     for(int i = *indiceAtual; i < NUM_PROCESSOS; i++)
     {
+        if(processo[i].tempoChegada > tempoAtual && !processo[i].isStarted) break;
+
         if(processo[i].tempoChegada == tempoAtual)
         {
             pushFila(fila, &processo[i]);
@@ -137,15 +139,10 @@ int leArquivo()
     return 0;
 }
 
-int max(int a, int b)
-{
-    return (a > b) ? a : b;
-}
 // FCFS - First Come First Served
 void FCFS()
 {
     Processo* aux       = NULL;
-    int tempoTotal      = 0;
     int tempoRetorno    = 0;
     int tempoResposta   = 0;
     int tempoEspera     = 0;
@@ -158,10 +155,10 @@ void FCFS()
     
     aux[0].tempoInicio = aux[0].tempoChegada;
     aux[0].tempoFim    = aux[0].tempoChegada + aux[0].tempoDuracao;
-    
+
     for(int i = 1; i < NUM_PROCESSOS; i++)
     {
-        aux[i].tempoInicio = max(aux[i-1].tempoFim, aux[i].tempoChegada);
+        aux[i].tempoInicio = MAX(aux[i-1].tempoFim, aux[i].tempoChegada);
         aux[i].tempoFim    = aux[i].tempoInicio   + aux[i].tempoDuracao;
     }
     
@@ -189,7 +186,7 @@ void calculaTempoRetornoFCFS(Processo *aux, int *tempoRetorno)
     {
         aux[i].tempoRetorno = aux[i].tempoFim - aux[i].tempoChegada;
         *tempoRetorno      += aux[i].tempoRetorno;
-    } 
+    }
 }
 
 void calculaTempoRespostaFCFS(Processo *aux, int *tempoResposta)
@@ -205,7 +202,6 @@ void calculaTempoRespostaFCFS(Processo *aux, int *tempoResposta)
 void SJF()
 {
     Processo* aux       = NULL;
-    int tempoTotal      = 0;
     int tempoRetorno    = 0;
     int tempoResposta   = 0;
     int tempoEspera     = 0;
@@ -289,7 +285,7 @@ void calculaTempoRespostaSJF(Processo *aux, int *tempoResposta)
 {
     for(int i = 0; i != NUM_PROCESSOS; i++)
     {
-        aux[i].tempoResposta = aux[i].tempoFim - aux[i].tempoChegada - aux[i].tempoExecucao;
+        aux[i].tempoResposta = aux[i].tempoInicio - aux[i].tempoChegada;
         *tempoResposta      += aux[i].tempoResposta;
     } 
 }
@@ -305,6 +301,7 @@ void RR()
     int tempoResposta   = 0;
     int tempoEspera     = 0;
     int tempoAtual      = 0;
+    int atualAux        = 0;
 
     initFila(&fila);
 
@@ -325,21 +322,36 @@ void RR()
 
         if(atual)
         {
-            atual->tempoExecucao += RR_QUANTUM;
+            int aux = 0;
+            while(aux++ != RR_QUANTUM)
+            {
+                atual->tempoExecucao++;
+                if(atual->tempoExecucao == atual->tempoDuracao)
+                {
+                    atualAux = aux;
+                    break;
+                }
+            }
             
             if(atual->tempoExecucao < atual->tempoDuracao)
             {
-                tempoAtual  += RR_QUANTUM;
-                
-                verificaChegada(&fila, processos, &indiceAtual, tempoAtual);
+                int aux = 0;
+                while(aux++ != RR_QUANTUM)
+                {
+                    tempoAtual++;
+                    verificaChegada(&fila, processos, &indiceAtual, tempoAtual);
+                }
+
                 pushFila(&fila, atual);
-                
+
                 atual       = NULL;
             }
             else
-            {
-                tempoAtual          += RR_QUANTUM;
-                
+            {               
+                tempoAtual += atualAux;
+                atualAux   = 0;
+                verificaChegada(&fila, processos, &indiceAtual, tempoAtual);
+
                 atual->tempoFim     = tempoAtual;
                 atual->tempoRetorno = tempoAtual - atual->tempoChegada;
                 atual->tempoEspera  = atual->tempoRetorno - atual->tempoDuracao;
